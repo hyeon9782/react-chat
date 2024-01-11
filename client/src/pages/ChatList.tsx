@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Room from "../components/Room";
 
 const rooms = [
@@ -10,11 +10,25 @@ const rooms = [
 ];
 
 const ChatList = () => {
+  const [roomList, setRoomList] = useState(rooms);
+
+  const handleClick = (title: string) => {
+    setRoomList((prevRoomList) => [
+      ...prevRoomList,
+      { id: prevRoomList.at(-1).id++, title },
+    ]);
+  };
   return (
     <div>
-      {rooms.map((room) => {
-        return <Room key={room.id} room={room} />;
-      })}
+      <div style={{ display: "flex" }}>
+        <div>리스트</div>
+        <div onClick={() => handleClick("안녕!!")}>➕</div>
+      </div>
+      <div>
+        {roomList.map((room) => {
+          return <Room key={room.id} room={room} />;
+        })}
+      </div>
     </div>
   );
 };
