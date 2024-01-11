@@ -1,9 +1,12 @@
 import io from "socket.io-client";
 import { useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
+import Chat from "../components/Chat";
 
 let socket: any;
 
 type Messages = {
+  roomId: string;
   msg: string;
   user: string;
 };
@@ -11,42 +14,26 @@ type Messages = {
 // 랜덤 유저
 const user = "User_" + String(new Date().getTime()).substr(-3);
 
-// 내 메시지
-const Me = ({ message }: { message: string }) => {
-  return (
-    <div className="p-6px 10px">
-      <p className="text-black text-lg">Me</p>
-      <div className="bg-blue-500 text-white max-w-320px px-2 py-1 rounded-lg inline-block">
-        <p className="text-2xl">{message}</p>
-      </div>
-    </div>
-  );
-};
-
-// 상대 메시지
-const Other = ({ user, message }: { user: string; message: string }) => {
-  return (
-    <div className="p-6px 10px text-right">
-      <p className="text-right text-black text-lg">{user}</p>
-      <div className="bg-green-400 text-white max-w-320px px-2 py-1 rounded-lg inline-block">
-        <p className="text-2xl">{message}</p>
-      </div>
-    </div>
-  );
-};
-
 const ChatRoom = () => {
+  const { id } = useParams();
+
+  console.log(id);
+  //   const [roomId, setRoomId] = useState<string | null>(null);
+
+  const roomId = useRef(null);
   const [connected, setConnected] = useState<boolean>(false);
 
   const [chat, setChat] = useState<Messages[]>([]);
   const [msg, setMsg] = useState("");
 
   const socketInitializer = () => {
-    socket = io("http://localhost:8000", { transports: ["websocket"] });
+    socket = io("http://localhost:8000/", { transports: ["websocket"] });
 
     socket.on("connect", () => {
       console.log(user, "has connected", socket);
-      socket.emit("welcome", user);
+      socket.emit("joinRoom", id);
+      roomId.current = id;
+
       setConnected(true);
     }); // 연결될 시에, 나오게 되는 welcome이라는 이름의 함수를 작동시키게 해준다.
 
@@ -59,13 +46,19 @@ const ChatRoom = () => {
     }); //누군가 들어왔을 때, 서버에서 newWelcome이라는 이름의 함수를 실행시켜주는데, 서버에서 보내는 user라는 값을 받아서, 콘솔에 로그를 남긴다.
 
     socket.on("newIncomingMessage", (message: Messages) => {
-      /* chat.push(message);
-        setChat([...chat]);*/
-      setChat((currentMsg) => [
-        ...currentMsg,
-        { user: message.user, msg: message.msg },
-      ]);
+      console.log("메세지 옴");
+      console.log(message);
+      console.log(message.roomId);
+      console.log(roomId);
 
+      console.log(message.roomId === roomId.current);
+
+      if (message.roomId === roomId.current) {
+        setChat((currentMsg) => [
+          ...currentMsg,
+          { user: message.user, msg: message.msg, roomId: roomId.current },
+        ]);
+      }
       console.log(user, chat, Date());
     });
   };
@@ -88,32 +81,20 @@ const ChatRoom = () => {
   }, [chat]);
 
   const sendMessage = async () => {
+    console.log("send");
+    console.log(roomId);
+    console.log(msg);
+
     const message: Messages = {
+      roomId: roomId.current,
       user,
       msg,
     };
     if (msg.trim() !== "") {
       // 공백을 메시지로 보내는 것을 방지하기 위해서 제출 전에 trim을 한 번 해줘야 한다.
-      socket.emit("createdMessage", message);
+      socket.emit("sendMessage", message);
       setMsg("");
     }
-
-    /*if (msg) {
-        const message: IMsg = {
-          user,
-          msg,
-        };
-        //send Message to Other user
-        //const res = await chatAPI(message);
-        // reset field if OK
-        if (res.status === 201) {
-          setMsg('');
-        }
-        fetch("http://localhost:3000/api/chat",{
-          method: "POST",
-          body: JSON.stringify({message})
-        }) 
-      }*/
   };
   return (
     <div>
@@ -121,11 +102,7 @@ const ChatRoom = () => {
         <div className="block border rounded-4 w-480px h-90v m-0 auto mt-32px bg-gray-200 overflow-y-scroll">
           {chat.map((chat, i) => (
             <div key={i}>
-              {chat.user === user ? (
-                <Me message={chat.msg} />
-              ) : (
-                <Other user={chat.user} message={chat.msg} />
-              )}
+              <Chat user={chat.user} message={chat.msg} />
             </div>
           ))}
           <div ref={scrollRef} />
